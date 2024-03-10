@@ -1,0 +1,57 @@
+import os
+import re
+import argparse
+from colorama import Fore, Style
+
+def grep(pattern, files, recursive=False, case_sensitive=True, line_number=False, count=False, before=0, after=0, invert_match=False, word_match=False, colorize=False):
+    flags = 0 if case_sensitive else re.IGNORECASE
+    if word_match:
+        pattern = r'\b' + re.escape(pattern) + r'\b'
+
+    compiled_pattern = re.compile(pattern, flags)
+
+    for file in files:
+        if os.path.isfile(file):
+            process_file(file, compiled_pattern, line_number, count, before, after, invert_match, colorize)
+        elif os.path.isdir(file) and recursive:
+            for root, _, filenames in os.walk(file):
+                for filename in filenames:
+                    process_file(os.path.join(root, filename), compiled_pattern, line_number, count, before, after, invert_match, colorize)
+
+def process_file(file, pattern, line_number=False, count=False, before=0, after=0, invert_match=False, colorize=False):
+    with open(file, 'r') as f:
+        lines = f.readlines()
+        for i, line in enumerate(lines):
+            if pattern.search(line):
+                if not invert_match:
+                    print_match(file, line, i + 1, colorize)
+            elif invert_match:
+                print_match(file, line, i + 1, colorize)
+
+def print_match(file, line, line_number, colorize):
+    if colorize:
+        line = re.sub(pattern, f"{Fore.RED}\\g<0>{Style.RESET_ALL}", line)
+    if line_number:
+        print(f"{Fore.BLUE}{file}{Style.RESET_ALL}:{line_number}: {line}", end='')
+    else:
+        print(f"{Fore.BLUE}{file}{Style.RESET_ALL}: {line}", end='')
+
+def main():
+    parser = argparse.ArgumentParser(description='Python Grep Implementation')
+    parser.add_argument('pattern', help='Pattern to search for')
+    parser.add_argument('files', nargs='+', help='Files to search in')
+    parser.add_argument('-r', '--recursive', action='store_true', help='Search files recursively')
+    parser.add_argument('-i', '--ignore-case', action='store_true', help='Ignore case distinctions')
+    parser.add_argument('-n', '--line-number', action='store_true', help='Prefix each line of output with the 1-based line number within its input file')
+    parser.add_argument('-c', '--count', action='store_true', help='Only print a count of matching lines per file')
+    parser.add_argument('-B', '--before-context', type=int, default=0, help='Print NUM lines of leading context before matching lines')
+    parser.add_argument('-A', '--after-context', type=int, default=0, help='Print NUM lines of trailing context after matching lines')
+    parser.add_argument('-v', '--invert-match', action='store_true', help='Selected lines are those not matching any of the specified patterns')
+    parser.add_argument('-w', '--word-regexp', action='store_true', help='The expression is searched for as a word (as if surrounded by \\b)')
+    parser.add_argument('--color', action='store_true', help='Highlight the matching text')
+    args = parser.parse_args()
+
+    grep(args.pattern, args.files, args.recursive, not args.ignore_case, args.line_number, args.count, args.before_context, args.after_context, args.invert_match, args.word_regexp, args.color)
+
+if __name__ == '__main__':
+    main()
